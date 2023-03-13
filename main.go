@@ -33,23 +33,23 @@ func main() {
 	tav := NewTenantAUserValidator()
 	tbv := NewTenantBUserValidator()
 
-	vp.SetTenantValidator(1, tav) // nesto
-	vp.SetTenantValidator(2, tbv) // ig
+	vp.SetTenantValidator(1, tav) // tenant 1
+	vp.SetTenantValidator(2, tbv) // tenant 2
 
 	pocUser := POCUser{
-		FirstName: "Peter",
-		Age:       16,
+		FirstName: "Pam with a very very very long name",
+		Age:       20,
 		Email:     "jdoe@mail.com",
 		Phone:     "+16175551212",
 		Addresses: []*Address{
-			{
-				ZipCode:  "zip",
-				Province: "Quebec",
-			},
-			{
-				ZipCode:  "another zip",
-				Province: "Ontario",
-			},
+			//{
+			//	ZipCode:  "zip",
+			//	Province: "Quebec",
+			//},
+			//{
+			//	ZipCode:  "another zip",
+			//	Province: "Ontario",
+			//},
 		},
 		Account: &Account{
 			ID:      "anuuid",
