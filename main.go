@@ -7,12 +7,17 @@ import (
 
 // POCUser contains POC user information
 type POCUser struct {
-	FirstName string
-	Age       uint8
+	BaseUser
+	FirstName string `json:"FIRSTNAME"`
+	Age       uint8  `json:"age"`
 	Email     string
 	Phone     string
 	Addresses []*Address
-	Account   *Account
+	Account   *Account `json:"account"`
+}
+
+type BaseUser struct {
+	LastName string
 }
 
 // Address info
@@ -23,7 +28,7 @@ type Address struct {
 
 // Account info
 type Account struct {
-	ID      string
+	ID      string `json:"anID"`
 	Balance float64
 }
 
@@ -37,8 +42,11 @@ func main() {
 	vp.SetTenantValidator(2, tbv) // tenant 2
 
 	pocUser := POCUser{
+		BaseUser: BaseUser{
+			LastName: "Smith",
+		},
 		FirstName: "Pam with a very very very long name",
-		Age:       20,
+		Age:       17,
 		Email:     "jdoe@mail.com",
 		Phone:     "+16175551212",
 		Addresses: []*Address{
