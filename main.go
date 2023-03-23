@@ -6,10 +6,20 @@ import (
 )
 
 // POCUser contains POC user information
+type POC struct {
+	BaseUser
+	FirstName string `json:"FIRSTNAME"`
+	Age       uint8  `json:"myAge"`
+	Email     string
+	Phone     string
+	Account   *Account `json:"account"`
+}
+
+// POCUser contains POC user information
 type POCUser struct {
 	BaseUser
 	FirstName string `json:"FIRSTNAME"`
-	Age       uint8  `json:"age"`
+	Age       uint8  `json:"myAge,string"`
 	Email     string
 	Phone     string
 	Addresses []*Address
@@ -64,8 +74,12 @@ func main() {
 			Balance: -4.78,
 		},
 	}
+
+	// test entity map composition
+	vp.validationEntities = ComposeEntityFieldsMap(POCUser{})
+
 	ctx := context.WithValue(context.Background(), "tenant", 1) // 1 - nesto | 2 - ig
-	err := vp.ValidateUser(ctx, pocUser)
+	err := vp.ValidateUser(ctx, &pocUser)
 	if err != nil {
 		fmt.Println("Validation Provider failed...")
 		fmt.Println(err)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -21,13 +20,19 @@ type POCValidationProvider interface {
 // POCDefaultValidationProvider is the default validation provider.
 // It has an embedded sanitizer that should be used to sanitize data before validation is executed.
 type POCDefaultValidationProvider struct {
-	tenantValidators map[int]POCValidator // allows multi tenancy validation
+	tenantValidators   map[int]POCValidator // allows multi tenancy validation
+	validationEntities map[string]map[string]string
+	validationStructs  map[uintptr]map[uintptr]string
+	validationStructs2 map[any]map[uintptr]string
 }
 
 // NewPOCDefaultValidationProvider returns a new POCDefaultValidationProvider
 func NewPOCDefaultValidationProvider() *POCDefaultValidationProvider {
 	return &POCDefaultValidationProvider{
-		tenantValidators: make(map[int]POCValidator),
+		tenantValidators:   make(map[int]POCValidator),
+		validationEntities: make(map[string]map[string]string),
+		validationStructs:  make(map[uintptr]map[uintptr]string),
+		validationStructs2: make(map[any]map[uintptr]string),
 	}
 }
 
@@ -35,18 +40,11 @@ func (vp *POCDefaultValidationProvider) SetTenantValidator(tenantID int, validat
 	vp.tenantValidators[tenantID] = validator
 }
 
-func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user POCUser) error {
+func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user *POCUser) error {
 	// validation that is applied to all tenants
 	tenantID := ctx.Value("tenant").(int)
 	validate := validator.New()
 	// Register function to get tag name from json tags by default, then field names
-	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
-		if name == "-" {
-			return fld.Name
-		}
-		return name
-	})
 	validate.RegisterStructValidation(decorateStructValidation(vp.DefaultUserValidation, vp.tenantValidators[tenantID].UserValidation), POCUser{})
 	err := validate.Struct(user)
 	if err != nil {
@@ -70,9 +68,7 @@ func decorateStructValidation(customValidation ...validator.StructLevelFunc) val
 func (vp *POCDefaultValidationProvider) DefaultUserValidation(sl validator.StructLevel) {
 	user := sl.Current().Interface().(POCUser)
 
-	//field, _ := reflect.TypeOf(user).FieldByName("FirstName")
-	//name := field.Tag.Get("json")
-	//vp.validateField(sl, user.FirstName, name, "max=10")
+	ValidateFieldWithTag(sl, user, user.FirstName, "FirstName", "max=10", vp.validationEntities)
 
 	// Validate Age - 18+
 	err := sl.Validator().Var(user.Age, "min=18")
@@ -106,44 +102,44 @@ func (vp *POCDefaultValidationProvider) DefaultUserValidation(sl validator.Struc
 	}
 }
 
-func (vp *POCDefaultValidationProvider) validateField(sl validator.StructLevel, field interface{}, name, tag string) {
-
-	// Validate First Name - Max Length is 10
-	//err := sl.Validator().Var(field, tag).(validator.ValidationErrors)
-	//if err != nil {
-	//	sl.ReportError(field, name, name, tag, "")
-	//}
-}
-
+// extractJSONTag extracts the JSON tag of a field based on its name.
+// Function parameters:
+// T: Struct to extract the JSON tag from
+// name: Field name to extract JSON tag
+//
+// If a JSON tag does not exist for the specified field the field name is returned instead.
+// If field name does not exist in the struct, an empty string is returned.
 func extractJSONTag(T any, name string) string {
-	if field, ok := reflect.TypeOf(T).FieldByName(name); ok {
+	// newT represents the actual struct where the field JSON tag will be extracted from
+	var s interface{}
+	if reflect.TypeOf(T).Kind() == reflect.Ptr {
+		// If T is a pointer to an interface, set newT to the value that T points to
+		s = reflect.ValueOf(T).Elem().Interface()
+	} else {
+		s = T
+	}
+	// Using reflection, extract the field tag name
+	if field, ok := reflect.TypeOf(s).FieldByName(name); ok {
 		tagName := field.Tag.Get("json")
 		if len(tagName) > 0 {
 			return tagName
 		}
+	} else {
+		return ""
 	}
 	return name
 }
 
-func tempFunc(s interface{}, f interface{}) *reflect.StructField {
-	if reflect.ValueOf(s).Type().Kind() != reflect.Ptr {
-
-	}
-	temp := findStructField(s, f)
-	fmt.Println(temp.Name)
-	return temp
-}
-
 // findStructField looks for a field (f) in the given struct (s).
-// This function receives:
-// s: pointer to the struct.
-// f: pointer to the field being looked for and should be a pointer to the actual struct field.
+// Function parameters:
+// s: pointer to the struct. If s is not a pointer to the struct, nil will be returned.
+// f: pointer to the field being looked for and should be a pointer to the actual struct field. If f is not a pointer to the field, nil will be returned.
 //
 // If found, the field info will be returned. Otherwise, nil will be returned.
-func findStructField(s interface{}, f interface{}) *reflect.StructField {
+func findStructField_old(s interface{}, f interface{}) *reflect.StructField {
 	// Check if s (struct) is a pointer to an interface
 	var structValue reflect.Value
-	if reflect.ValueOf(s).Type().Kind() == reflect.Ptr {
+	if reflect.ValueOf(s).Type().Kind() == reflect.Ptr || reflect.ValueOf(s).Type().Kind() == reflect.Interface {
 		structValue = reflect.ValueOf(s).Elem()
 	} else {
 		return nil
@@ -163,18 +159,73 @@ func findStructField(s interface{}, f interface{}) *reflect.StructField {
 		// Compare if field and struct field are the same type
 		if structValue.Field(i).Type().Kind() == fieldType.Kind() {
 			// Compare if field and struct field are the same
-			if structValue.Field(i).CanAddr() {
-				if fieldPointer == structValue.Field(i).Addr().Pointer() {
-					return &structField
-				}
-			} else {
-				p := structValue.Field(i).Pointer()
-				if fieldPointer == p {
-					return &structField
-				}
+			if fieldPointer == structValue.Field(i).Addr().Pointer() {
+				return &structField
 			}
-
 		}
 	}
 	return nil
+}
+
+func extractFieldNameAndTag(s interface{}, validationEntities map[string]map[string]string) (string, string) {
+	return "", ""
+}
+
+// ValidateFieldWithTag validates a field based on the tag provided and reports an error based on the name provided.
+// Function parameters:
+// sl: StructLevel to be used
+// s: A pointer to the struct where validation is applied (only used for reporting error)
+// field: A pointer to the field being validated
+// tag: String that defined which validation should be executed
+//
+// For validation purposes, the "field" parameter can be both a pointer or a value, however to properly report errors
+// both "s" and "field" should be pointers.
+func ValidateFieldWithTag(sl validator.StructLevel, s, field interface{}, fieldName, tag string, structFields map[string]map[string]string) {
+	fieldValue := field
+	if reflect.TypeOf(field).Kind() == reflect.Ptr {
+		fieldValue = reflect.Indirect(reflect.ValueOf(field)).Interface()
+	}
+	err := sl.Validator().Var(fieldValue, tag)
+	if err != nil {
+		structValue := reflect.ValueOf(s)
+		tag := fmt.Sprintf("%s.%s", structValue.Type().PkgPath(), structValue.Type().Name())
+
+		fieldName = structFields[tag][fieldName]
+		sl.ReportError(field, fieldName, fieldName, tag, "")
+	}
+}
+
+func ComposeEntityFieldsMap(structs ...interface{}) map[string]map[string]string {
+	entityFields := make(map[string]map[string]string)
+	for i := 0; i < len(structs); i++ {
+		structValue := reflect.ValueOf(structs[i])
+		if reflect.ValueOf(structValue).Type().Kind() != reflect.Struct {
+			return nil
+		}
+		fieldsMap := make(map[string]string)
+		for i := 0; i < structValue.NumField(); i++ {
+			structField := structValue.Type().Field(i)
+			fieldName := structField.Name
+			fieldJSONTag := extractJSONTag(structValue.Interface(), fieldName)
+			fieldsMap[fieldName] = fieldJSONTag
+		}
+		entityFields[fmt.Sprintf("%s.%s", structValue.Type().PkgPath(), structValue.Type().Name())] = fieldsMap
+	}
+	return entityFields
+}
+
+func AddStructFieldsCache(s interface{}) map[uintptr]string {
+	var structValue reflect.Value
+	fieldMap := make(map[uintptr]string)
+	if reflect.ValueOf(s).Type().Kind() == reflect.Ptr {
+		structValue = reflect.ValueOf(s).Elem()
+	} else {
+		structValue = reflect.ValueOf(s)
+	}
+	for i := structValue.NumField() - 1; i >= 0; i-- {
+		structField := structValue.Type().Field(i)
+		fieldMap[structValue.Field(i).Addr().Pointer()] = structField.Name
+		//fieldMap[structField.Name] = structField.Name
+	}
+	return fieldMap
 }
