@@ -79,7 +79,7 @@ func main() {
 	vp.validationEntities = ComposeEntityFieldsMap(POCUser{})
 
 	ctx := context.WithValue(context.Background(), "tenant", 1) // 1 - nesto | 2 - ig
-	err := vp.ValidateUser(ctx, &pocUser)
+	err := vp.ValidateUser(ctx, pocUser)
 	if err != nil {
 		fmt.Println("Validation Provider failed...")
 		fmt.Println(err)

@@ -22,8 +22,6 @@ type POCValidationProvider interface {
 type POCDefaultValidationProvider struct {
 	tenantValidators   map[int]POCValidator // allows multi tenancy validation
 	validationEntities map[string]map[string]string
-	validationStructs  map[uintptr]map[uintptr]string
-	validationStructs2 map[any]map[uintptr]string
 }
 
 // NewPOCDefaultValidationProvider returns a new POCDefaultValidationProvider
@@ -31,8 +29,6 @@ func NewPOCDefaultValidationProvider() *POCDefaultValidationProvider {
 	return &POCDefaultValidationProvider{
 		tenantValidators:   make(map[int]POCValidator),
 		validationEntities: make(map[string]map[string]string),
-		validationStructs:  make(map[uintptr]map[uintptr]string),
-		validationStructs2: make(map[any]map[uintptr]string),
 	}
 }
 
@@ -40,7 +36,7 @@ func (vp *POCDefaultValidationProvider) SetTenantValidator(tenantID int, validat
 	vp.tenantValidators[tenantID] = validator
 }
 
-func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user *POCUser) error {
+func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user POCUser) error {
 	// validation that is applied to all tenants
 	tenantID := ctx.Value("tenant").(int)
 	validate := validator.New()
@@ -52,6 +48,10 @@ func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user *
 		test = test
 		return err
 	}
+
+	// Test via map validation
+	// test := ComposeRulesMap(sl, user)
+
 	return nil
 }
 
@@ -191,7 +191,7 @@ func ValidateFieldWithTag(sl validator.StructLevel, s, field interface{}, fieldN
 		tag := fmt.Sprintf("%s.%s", structValue.Type().PkgPath(), structValue.Type().Name())
 
 		fieldName = structFields[tag][fieldName]
-		sl.ReportError(field, fieldName, fieldName, tag, "")
+		sl.ReportError(field, fieldName, fieldName, tag, "theParam")
 	}
 }
 
@@ -214,18 +214,10 @@ func ComposeEntityFieldsMap(structs ...interface{}) map[string]map[string]string
 	return entityFields
 }
 
-func AddStructFieldsCache(s interface{}) map[uintptr]string {
-	var structValue reflect.Value
-	fieldMap := make(map[uintptr]string)
-	if reflect.ValueOf(s).Type().Kind() == reflect.Ptr {
-		structValue = reflect.ValueOf(s).Elem()
-	} else {
-		structValue = reflect.ValueOf(s)
-	}
-	for i := structValue.NumField() - 1; i >= 0; i-- {
-		structField := structValue.Type().Field(i)
-		fieldMap[structValue.Field(i).Addr().Pointer()] = structField.Name
-		//fieldMap[structField.Name] = structField.Name
-	}
-	return fieldMap
+func ComposeRulesMap(sl validator.StructLevel, s interface{}) map[string]interface{} {
+	value, kind, nullable := sl.ExtractType(sl.Current())
+	value = value
+	kind = kind
+	nullable = nullable
+	return nil
 }
