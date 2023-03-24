@@ -15,7 +15,8 @@ type POCValidator interface {
 
 // POCValidationProvider provides ways to validate fields.
 type POCValidationProvider interface {
-	ValidateUser(ctx context.Context, user POCUser) error
+	ValidateUserWithStructValidation(ctx context.Context, user POCUser) error
+	ValidateUserWithRulesValidation(ctx context.Context, user POCUser) error
 }
 
 // POCDefaultValidationProvider is the default validation provider.
@@ -42,22 +43,27 @@ func (vp *POCDefaultValidationProvider) SetTenantRules(tenantID int, rules map[s
 	vp.tenantRules[tenantID] = rules
 }
 
-func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user POCUser) error {
+func (vp *POCDefaultValidationProvider) ValidateUserWithStructValidation(ctx context.Context, user POCUser) error {
+	// validation that is applied to all tenants
+	tenantID := ctx.Value("tenant").(int)
+	validate := validator.New()
+	// Register function to get tag name from json tags by default, then field names
+	// Register Struct Validation Pattern
+	validate.RegisterStructValidation(decorateStructValidation(vp.DefaultUserValidation, vp.tenantValidators[tenantID].UserValidation), POCUser{})
+	err := validate.Struct(user)
+	if err != nil {
+		test := err.(validator.ValidationErrors)
+		test = test
+		return err
+	}
+	return nil
+}
+
+func (vp *POCDefaultValidationProvider) ValidateUserWithRulesValidation(ctx context.Context, user POCUser) error {
 	// validation that is applied to all tenants
 	tenantID := ctx.Value("tenant").(int)
 	validate := validator.New()
 	validate.RegisterValidation("startswiths", ValidateFieldStartsWithS)
-	// Register function to get tag name from json tags by default, then field names
-
-	// Register Struct Validation Pattern
-	//validate.RegisterStructValidation(decorateStructValidation(vp.DefaultUserValidation, vp.tenantValidators[tenantID].UserValidation), POCUser{})
-	//err := validate.Struct(user)
-	//if err != nil {
-	//	test := err.(validator.ValidationErrors)
-	//	test = test
-	//	return err
-	//}
-
 	//  RegisterStructValidationMapRules Pattern
 	userRules := decorateRules(ComposeDefaultUserRules(), vp.tenantValidators[tenantID].UserValidationRules())
 	validate.RegisterStructValidationMapRules(userRules, POCUser{})
@@ -67,7 +73,6 @@ func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user P
 		test = test
 		return err
 	}
-
 	return nil
 }
 
@@ -210,7 +215,6 @@ func ComposeDefaultAddressRules() map[string]string {
 }
 
 func appendRule(field, rule string, rules map[string]string) {
-
 	// check if field is there
 	if val, ok := rules[field]; ok {
 		// append

@@ -55,7 +55,7 @@ func main() {
 		BaseUser: BaseUser{
 			LastName: "Smith",
 		},
-		FirstName: "Pam",
+		FirstName: "Pam with a very very very long name",
 		Age:       17,
 		Email:     "jdoe@mail.com",
 		Phone:     "+16175551212",
@@ -79,9 +79,15 @@ func main() {
 	vp.validationEntities = ComposeEntityFieldsMap(POCUser{})
 
 	ctx := context.WithValue(context.Background(), "tenant", 1) // 1 - nesto | 2 - ig
-	err := vp.ValidateUser(ctx, pocUser)
+	err := vp.ValidateUserWithStructValidation(ctx, pocUser)
 	if err != nil {
-		fmt.Println("Validation Provider failed...")
+		fmt.Println("[ValidateUserWithStructValidation] Validation Provider failed...")
+		fmt.Println(err)
+	}
+	err = nil
+	err = vp.ValidateUserWithRulesValidation(ctx, pocUser)
+	if err != nil {
+		fmt.Println("[ValidateUserWithRulesValidation] Validation Provider failed...")
 		fmt.Println(err)
 	}
 }
