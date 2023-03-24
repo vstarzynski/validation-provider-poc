@@ -10,6 +10,7 @@ import (
 
 type POCValidator interface {
 	UserValidation(sl validator.StructLevel)
+	UserValidationRules() map[string]string
 }
 
 // POCValidationProvider provides ways to validate fields.
@@ -21,6 +22,7 @@ type POCValidationProvider interface {
 // It has an embedded sanitizer that should be used to sanitize data before validation is executed.
 type POCDefaultValidationProvider struct {
 	tenantValidators   map[int]POCValidator // allows multi tenancy validation
+	tenantRules        map[int]map[string]string
 	validationEntities map[string]map[string]string
 }
 
@@ -36,12 +38,18 @@ func (vp *POCDefaultValidationProvider) SetTenantValidator(tenantID int, validat
 	vp.tenantValidators[tenantID] = validator
 }
 
+func (vp *POCDefaultValidationProvider) SetTenantRules(tenantID int, rules map[string]string) {
+	vp.tenantRules[tenantID] = rules
+}
+
 func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user POCUser) error {
 	// validation that is applied to all tenants
-	//tenantID := ctx.Value("tenant").(int)
+	tenantID := ctx.Value("tenant").(int)
 	validate := validator.New()
 	validate.RegisterValidation("startswiths", ValidateFieldStartsWithS)
 	// Register function to get tag name from json tags by default, then field names
+
+	// Register Struct Validation Pattern
 	//validate.RegisterStructValidation(decorateStructValidation(vp.DefaultUserValidation, vp.tenantValidators[tenantID].UserValidation), POCUser{})
 	//err := validate.Struct(user)
 	//if err != nil {
@@ -50,8 +58,8 @@ func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user P
 	//	return err
 	//}
 
-	// Test via map validation
-	userRules := decorateRules(ComposeDefaultUserRules(), ComposeTenantAUserRules())
+	//  RegisterStructValidationMapRules Pattern
+	userRules := decorateRules(ComposeDefaultUserRules(), vp.tenantValidators[tenantID].UserValidationRules())
 	validate.RegisterStructValidationMapRules(userRules, POCUser{})
 	err := validate.Struct(user)
 	if err != nil {
@@ -179,21 +187,29 @@ func decorateRules(rules ...map[string]string) map[string]string {
 	decoratedRules := make(map[string]string)
 	for _, r := range rules {
 		for k, v := range r {
-			decoratedRules = appendRule(k, v, decoratedRules)
+			appendRule(k, v, decoratedRules)
 		}
 	}
 	return decoratedRules
 }
 
 func ComposeDefaultUserRules() map[string]string {
-	userRules := make(map[string]string)
-	userRules = appendRule("FirstName", "max=10", userRules)
-	userRules = appendRule("Age", "min=18", userRules)
-	userRules = appendRule("Email", "required,email", userRules)
-	return userRules
+	rules := make(map[string]string)
+	appendRule("FirstName", "max=10", rules)
+	appendRule("Age", "min=18", rules)
+	appendRule("Email", "required,email", rules)
+	return rules
 }
 
-func appendRule(field, rule string, rules map[string]string) map[string]string {
+func ComposeDefaultAddressRules() map[string]string {
+	rules := make(map[string]string)
+	appendRule("FirstName", "max=10", rules)
+	appendRule("Age", "min=18", rules)
+	appendRule("Email", "required,email", rules)
+	return rules
+}
+
+func appendRule(field, rule string, rules map[string]string) {
 
 	// check if field is there
 	if val, ok := rules[field]; ok {
@@ -207,7 +223,6 @@ func appendRule(field, rule string, rules map[string]string) map[string]string {
 		// include
 		rules[field] = rule
 	}
-	return rules
 }
 
 // ValidateFieldWithTag validates a field based on the tag provided and reports an error based on the name provided.

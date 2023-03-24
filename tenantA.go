@@ -38,9 +38,9 @@ func (v *TenantAUserValidator) UserValidation(sl validator.StructLevel) {
 	}
 }
 
-func ComposeTenantAUserRules() map[string]string {
+func (v *TenantAUserValidator) UserValidationRules() map[string]string {
 	userRules := make(map[string]string)
-	userRules = appendRule("FirstName", "startswiths", userRules)
-	userRules = appendRule("Phone", "e164", userRules)
+	appendRule("FirstName", "startswiths", userRules)
+	appendRule("Phone", "e164", userRules)
 	return userRules
 }

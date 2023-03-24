@@ -28,3 +28,8 @@ func (v *TenantBUserValidator) UserValidation(sl validator.StructLevel) {
 		}
 	}
 }
+
+func (v *TenantBUserValidator) UserValidationRules() map[string]string {
+	userRules := make(map[string]string)
+	return userRules
+}
