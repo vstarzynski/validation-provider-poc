@@ -55,7 +55,7 @@ func main() {
 		BaseUser: BaseUser{
 			LastName: "Smith",
 		},
-		FirstName: "Pam with a very very very long name",
+		FirstName: "Pam",
 		Age:       17,
 		Email:     "jdoe@mail.com",
 		Phone:     "+16175551212",

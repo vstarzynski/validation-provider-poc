@@ -38,19 +38,27 @@ func (vp *POCDefaultValidationProvider) SetTenantValidator(tenantID int, validat
 
 func (vp *POCDefaultValidationProvider) ValidateUser(ctx context.Context, user POCUser) error {
 	// validation that is applied to all tenants
-	tenantID := ctx.Value("tenant").(int)
+	//tenantID := ctx.Value("tenant").(int)
 	validate := validator.New()
+	validate.RegisterValidation("startswiths", ValidateFieldStartsWithS)
 	// Register function to get tag name from json tags by default, then field names
-	validate.RegisterStructValidation(decorateStructValidation(vp.DefaultUserValidation, vp.tenantValidators[tenantID].UserValidation), POCUser{})
+	//validate.RegisterStructValidation(decorateStructValidation(vp.DefaultUserValidation, vp.tenantValidators[tenantID].UserValidation), POCUser{})
+	//err := validate.Struct(user)
+	//if err != nil {
+	//	test := err.(validator.ValidationErrors)
+	//	test = test
+	//	return err
+	//}
+
+	// Test via map validation
+	userRules := decorateRules(ComposeDefaultUserRules(), ComposeTenantAUserRules())
+	validate.RegisterStructValidationMapRules(userRules, POCUser{})
 	err := validate.Struct(user)
 	if err != nil {
 		test := err.(validator.ValidationErrors)
 		test = test
 		return err
 	}
-
-	// Test via map validation
-	// test := ComposeRulesMap(sl, user)
 
 	return nil
 }
@@ -167,8 +175,39 @@ func findStructField_old(s interface{}, f interface{}) *reflect.StructField {
 	return nil
 }
 
-func extractFieldNameAndTag(s interface{}, validationEntities map[string]map[string]string) (string, string) {
-	return "", ""
+func decorateRules(rules ...map[string]string) map[string]string {
+	decoratedRules := make(map[string]string)
+	for _, r := range rules {
+		for k, v := range r {
+			decoratedRules = appendRule(k, v, decoratedRules)
+		}
+	}
+	return decoratedRules
+}
+
+func ComposeDefaultUserRules() map[string]string {
+	userRules := make(map[string]string)
+	userRules = appendRule("FirstName", "max=10", userRules)
+	userRules = appendRule("Age", "min=18", userRules)
+	userRules = appendRule("Email", "required,email", userRules)
+	return userRules
+}
+
+func appendRule(field, rule string, rules map[string]string) map[string]string {
+
+	// check if field is there
+	if val, ok := rules[field]; ok {
+		// append
+		if len(val) != 0 {
+			rules[field] = fmt.Sprintf("%s,%s", rules[field], rule)
+		} else {
+			rules[field] = rule
+		}
+	} else {
+		// include
+		rules[field] = rule
+	}
+	return rules
 }
 
 // ValidateFieldWithTag validates a field based on the tag provided and reports an error based on the name provided.
@@ -188,10 +227,10 @@ func ValidateFieldWithTag(sl validator.StructLevel, s, field interface{}, fieldN
 	err := sl.Validator().Var(fieldValue, tag)
 	if err != nil {
 		structValue := reflect.ValueOf(s)
-		tag := fmt.Sprintf("%s.%s", structValue.Type().PkgPath(), structValue.Type().Name())
+		mapKey := fmt.Sprintf("%s.%s", structValue.Type().PkgPath(), structValue.Type().Name())
 
-		fieldName = structFields[tag][fieldName]
-		sl.ReportError(field, fieldName, fieldName, tag, "theParam")
+		fieldName = structFields[mapKey][fieldName]
+		sl.ReportError(field, fieldName, fieldName, tag, "")
 	}
 }
 
@@ -214,10 +253,7 @@ func ComposeEntityFieldsMap(structs ...interface{}) map[string]map[string]string
 	return entityFields
 }
 
-func ComposeRulesMap(sl validator.StructLevel, s interface{}) map[string]interface{} {
-	value, kind, nullable := sl.ExtractType(sl.Current())
-	value = value
-	kind = kind
-	nullable = nullable
-	return nil
+// ValidateFieldStartsWithS implements validator.Func
+func ValidateFieldStartsWithS(fl validator.FieldLevel) bool {
+	return fl.Field().String()[0:1] == "S"
 }
