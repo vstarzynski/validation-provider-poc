@@ -65,7 +65,7 @@ func (vp *POCDefaultValidationProvider) ValidateUserWithRulesValidation(ctx cont
 	validate := validator.New()
 	validate.RegisterValidation("startswiths", ValidateFieldStartsWithS)
 	//  RegisterStructValidationMapRules Pattern
-	userRules := decorateRules(ComposeDefaultUserRules(), vp.tenantValidators[tenantID].UserValidationRules())
+	userRules := DecorateRules(ComposeDefaultUserRules(), vp.tenantValidators[tenantID].UserValidationRules())
 	validate.RegisterStructValidationMapRules(userRules, POCUser{})
 	err := validate.Struct(user)
 	if err != nil {
@@ -188,7 +188,7 @@ func findStructField_old(s interface{}, f interface{}) *reflect.StructField {
 	return nil
 }
 
-func decorateRules(rules ...map[string]string) map[string]string {
+func DecorateRules(rules ...map[string]string) map[string]string {
 	decoratedRules := make(map[string]string)
 	for _, r := range rules {
 		for k, v := range r {
