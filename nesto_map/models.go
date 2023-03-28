@@ -48,7 +48,7 @@ func (a Application) Validate() []string {
 	validate.RegisterCustomTypeFunc(ValidateValuer, null.String{}, null.Int{}, null.Bool{}, null.Float64{}, null.Time{})
 
 	// Decorate can be used for both default and tenant aware validation
-	addressRules := decorateRules(composeDefaultAddressRules())
+	addressRules := decorateRules(composeDefaultAddressRules(), composeIGAddressRules())
 	applicantRules := decorateRules(composeDefaultApplicantRules())
 	applicationRules := decorateRules(composeDefaultApplicationRules())
 	validate.RegisterStructValidationMapRules(addressRules, Address{})
@@ -83,6 +83,12 @@ func composeDefaultAddressRules() map[string]string {
 	appendRule("City", "omitempty,oneof=Toronto Calgary", rules)
 	appendRule("CountryCode", "country_code", rules)
 	appendRule("PostalCode", "required,canadian_postal_code", rules)
+	return rules
+}
+
+func composeIGAddressRules() map[string]string {
+	rules := make(map[string]string)
+	appendRule("Street", "max=25", rules)
 	return rules
 }
 

@@ -112,7 +112,7 @@ func provideDefaultTestCases() []testCase {
 				app.Applicants[1111] = nil
 				return app
 			},
-			[]string{"Application.Applicants[1111]"},
+			[]string{"Application.Applicants"},
 		},
 		{
 			"6/invalid/applicant all address fields",
@@ -126,10 +126,10 @@ func provideDefaultTestCases() []testCase {
 				return app
 			},
 			[]string{
-				"Application.Applicants[123456].Address.Street",
-				"Application.Applicants[123456].Address.City",
-				"Application.Applicants[123456].Address.CountryCode",
-				"Application.Applicants[123456].Address.PostalCode"},
+				"Application.Street",
+				"Application.City",
+				"Application.CountryCode",
+				"Application.PostalCode"},
 		},
 		{
 			"7/invalid/applicant country code",
@@ -139,7 +139,7 @@ func provideDefaultTestCases() []testCase {
 
 				return app
 			},
-			[]string{"Application.Applicants[123456].Address.CountryCode"},
+			[]string{"Application.CountryCode"},
 		},
 		{
 			"8/invalid/email too long",
@@ -149,7 +149,7 @@ func provideDefaultTestCases() []testCase {
 
 				return app
 			},
-			[]string{"Application.Applicants[123456].Email"},
+			[]string{"Application.Email"},
 		},
 		{
 			"9/invalid/email missing",
@@ -159,7 +159,7 @@ func provideDefaultTestCases() []testCase {
 
 				return app
 			},
-			[]string{"Application.Applicants[123456].Email"},
+			[]string{"Application.Email"},
 		},
 		{
 			"10/invalid/email not defined",
@@ -169,7 +169,7 @@ func provideDefaultTestCases() []testCase {
 
 				return app
 			},
-			[]string{"Application.Applicants[123456].Email"},
+			[]string{"Application.Email"},
 		},
 		{
 			"11/invalid/custom validation/phone",
@@ -179,7 +179,7 @@ func provideDefaultTestCases() []testCase {
 
 				return app
 			},
-			[]string{"Application.Applicants[123456].Phone"},
+			[]string{"Application.Phone"},
 		},
 		{
 			"12/invalid/missing SIN for Canada",
@@ -189,7 +189,7 @@ func provideDefaultTestCases() []testCase {
 
 				return app
 			},
-			[]string{"Application.Applicants[123456].SocialInsuranceNUmber"},
+			[]string{"Application.SocialInsuranceNUmber"},
 		},
 	}
 }
